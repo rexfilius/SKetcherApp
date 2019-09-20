@@ -15,8 +15,9 @@ import static javax.swing.Action.*;
 public class SketcherFrame extends JFrame {
     
     @SuppressWarnings("serial")
-    public SketcherFrame(String title) {
+    public SketcherFrame(String title, Sketcher theApp) {
         setTitle(title);
+        this.theApp = theApp;
         setJMenuBar(menuBar);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         
@@ -240,9 +241,21 @@ public class SketcherFrame extends JFrame {
         private Color color;
     }
     
+    // return the current drawing color
+    public Color getElementColor() {
+        return elementColor;
+    }
+    // return the current element type
+    public int getElementType() {
+        return elementType;
+    }
+    
+    private Sketcher theApp;
     private JMenu elementMenu, colorMenu;
     private JMenuBar menuBar = new JMenuBar();
     private JToolBar toolBar = new JToolBar();
+    private Color elementColor = DEFAULT_ELEMENT_COLOR;
+    private int elementType = DEFAULT_ELEMENT_TYPE;
     
     private FileAction newAction, openAction, closeAction, saveAction, saveAsAction,
                        printAction, exitAction;
@@ -252,9 +265,5 @@ public class SketcherFrame extends JFrame {
     private TypeAction[] typeActions;
     
     private ColorAction redAction, greenAction, blueAction, yellowAction;
-    private ColorAction[] colorActions;
-    
-    private Color elementColor = DEFAULT_ELEMENT_COLOR;
-    private int elementType = DEFAULT_ELEMENT_TYPE;
-    
+    private ColorAction[] colorActions;  
 }
