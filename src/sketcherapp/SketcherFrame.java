@@ -1,18 +1,22 @@
 
 package sketcherapp;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.awt.font.TextLayout;
+import java.awt.geom.Rectangle2D;
 import java.awt.event.*;
-import java.awt.Color;
-import java.awt.BorderLayout;
+//import java.awt.Color;
+//import java.awt.BorderLayout;
 import javax.swing.*;
 import javax.swing.border.*;
 import static sketcherapp.SketcherConstants.*;
 import static java.awt.Color.*;
-import static java.awt.AWTEvent.*;
+//import static java.awt.AWTEvent.*;
 import static java.awt.event.InputEvent.*;
 import static javax.swing.Action.*;
 
-public class SketcherFrame extends JFrame {
+public class SketcherFrame extends JFrame implements ActionListener {
     
     @SuppressWarnings("serial")
     public SketcherFrame(String title, Sketcher theApp) {
@@ -21,14 +25,35 @@ public class SketcherFrame extends JFrame {
         setJMenuBar(menuBar);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         
+        setCustomIconColor(CUSTOM16, customColor);
+        setCustomIconColor(CUSTOM24, customColor);
+        
         createFileMenu();
         createElementMenu();
         createColorMenu();
+        JMenu optionsMenu = new JMenu("Options");
+        optionsMenu.setMnemonic('O');
+        menuBar.add(optionsMenu);
+        createPopupMenu();
+        // add the font choice item to the options menu
+        fontItem = new JMenuItem("Choose font...");
+        fontItem.addActionListener(this);
+        optionsMenu.add(fontItem);
+        fontDialog = new FontDialog(this);
         
         createToolBar();
         toolBar.setRollover(true);
         toolBar.setFloatable(false);
+        JMenu helpMenu = new JMenu("Help");
+        helpMenu.setMnemonic('H');
+        
+        // Add the About item to the Help Menu
+        aboutItem = new JMenuItem("About");
+        aboutItem.addActionListener(this);
+        helpMenu.add(aboutItem);
+        menuBar.add(helpMenu);
         getContentPane().add(toolBar, BorderLayout.NORTH);
+        getContentPane().add(statusBar, BorderLayout.SOUTH);
     }
     
     private void createFileMenuActions() {
@@ -82,23 +107,27 @@ public class SketcherFrame extends JFrame {
         rectangleAction = new TypeAction("Rectangle", RECTANGLE, 'R', CTRL_DOWN_MASK);
         circleAction = new TypeAction("Circle", CIRCLE, 'C', CTRL_DOWN_MASK);
         curveAction = new TypeAction("Curve", CURVE, 'U', CTRL_DOWN_MASK);
-        TypeAction[] actions = {lineAction, rectangleAction, circleAction, curveAction};
+        textAction = new TypeAction("Text", TEXT, 'T', CTRL_DOWN_MASK);
+        TypeAction[] actions = {lineAction, rectangleAction, circleAction, curveAction, textAction};
         typeActions = actions;
         // add toolbar icons
         lineAction.putValue(LARGE_ICON_KEY, LINE24);
         rectangleAction.putValue(LARGE_ICON_KEY, RECTANGLE24);
         circleAction.putValue(LARGE_ICON_KEY, CIRCLE24);
         curveAction.putValue(LARGE_ICON_KEY, CURVE24);
+        textAction.putValue(LARGE_ICON_KEY, TEXT24);
         // add menu bar icons
         lineAction.putValue(SMALL_ICON, LINE16);
         rectangleAction.putValue(SMALL_ICON, RECTANGLE16);
         circleAction.putValue(SMALL_ICON, CIRCLE16);
         curveAction.putValue(SMALL_ICON, CURVE16);
+        textAction.putValue(SMALL_ICON, TEXT16);
         // add tooltip text
         lineAction.putValue(SHORT_DESCRIPTION, "Draw lines");
         rectangleAction.putValue(SHORT_DESCRIPTION, "Draw rectangles");
         circleAction.putValue(SHORT_DESCRIPTION, "Draw circles");
         curveAction.putValue(SHORT_DESCRIPTION, "Draw curves");
+        textAction.putValue(SHORT_DESCRIPTION, "Draw Text");
     }
     private void createElementMenu() {
         createElementTypeActions();
@@ -112,23 +141,27 @@ public class SketcherFrame extends JFrame {
         yellowAction = new ColorAction("Yellow", YELLOW, 'Y', CTRL_DOWN_MASK|ALT_DOWN_MASK);
         greenAction = new ColorAction("Green", GREEN, 'G', CTRL_DOWN_MASK|ALT_DOWN_MASK);
         blueAction = new ColorAction("Blue", BLUE, 'B', CTRL_DOWN_MASK|ALT_DOWN_MASK);
-        ColorAction[] actions = {redAction, yellowAction, greenAction, blueAction};
+        customAction = new ColorAction("Custom...", BLUE, 'C', CTRL_DOWN_MASK|ALT_DOWN_MASK);
+        ColorAction[] actions = {redAction, yellowAction, greenAction, blueAction, customAction};
         colorActions = actions;
         // add toolbar icons
         redAction.putValue(LARGE_ICON_KEY, RED24);
         greenAction.putValue(LARGE_ICON_KEY, GREEN24);
         blueAction.putValue(LARGE_ICON_KEY, BLUE24);
         yellowAction.putValue(LARGE_ICON_KEY, YELLOW24);
+        customAction.putValue(LARGE_ICON_KEY, CUSTOM24);
         /// add menu bar icons
         redAction.putValue(SMALL_ICON, RED16);
         greenAction.putValue(SMALL_ICON, GREEN16);
         blueAction.putValue(SMALL_ICON, BLUE16);
         yellowAction.putValue(SMALL_ICON, YELLOW16);
+        customAction.putValue(SMALL_ICON, CUSTOM16);
         // add tooltip text
         redAction.putValue(SHORT_DESCRIPTION, "Draw in red");
         greenAction.putValue(SHORT_DESCRIPTION, "Draw in green");
         blueAction.putValue(SHORT_DESCRIPTION, "Draw in blue");
         yellowAction.putValue(SHORT_DESCRIPTION, "Draw in yellow");
+        customAction.putValue(SHORT_DESCRIPTION, "Draw in custom color");
     }
     private void createColorMenu() {
         createElementColorActions();
@@ -183,6 +216,50 @@ public class SketcherFrame extends JFrame {
         }
     }
     
+    // Create pop-up menu
+    private void createPopupMenu() {
+        popup.add(new JMenuItem(lineAction));
+        popup.add(new JMenuItem(rectangleAction));
+        popup.add(new JMenuItem(circleAction));
+        popup.add(new JMenuItem(curveAction));
+        popup.add(new JMenuItem(textAction));
+        popup.addSeparator();
+        popup.add(new JMenuItem(redAction));
+        popup.add(new JMenuItem(yellowAction));
+        popup.add(new JMenuItem(greenAction));
+        popup.add(new JMenuItem(blueAction));
+    }
+    
+    private void setCustomIconColor(ImageIcon icon, Color color) {
+        BufferedImage image = (BufferedImage)(icon.getImage());
+        int width = image.getWidth();
+        int indent = width == 16 ? 3 : 2;
+        int rectSize = width - 2*indent;
+        Graphics2D g2D = image.createGraphics();
+        g2D.setPaint(color);
+        g2D.fillRect(indent, indent, rectSize, rectSize);
+        if(width == 24) {
+            TextLayout textLayout = new TextLayout("C", g2D.getFont(), g2D.getFontRenderContext());
+            Rectangle2D.Float rect = (Rectangle2D.Float)textLayout.getBounds();
+            g2D.setPaint(new Color(255-color.getRed(), 255-color.getGreen(), 255-color.getBlue()));
+            g2D.drawString("C", (width-rect.width)/2, (width+rect.height)/2);
+        }
+        g2D.dispose();
+    }
+    
+    // Handle About menu events
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if(e.getSource() == aboutItem) {
+            JOptionPane.showMessageDialog(this, "Developed by filius, Inspired by Ivor Horton", 
+                                        "About Sketcher", JOptionPane.INFORMATION_MESSAGE);
+        } else if(e.getSource() == fontItem) {
+            Rectangle bounds = getBounds();
+            fontDialog.setLocationRelativeTo(null);
+            fontDialog.setVisible(true);
+        }
+    }
+    
     // inner class defining Action objects for File Menu items
     class FileAction extends AbstractAction {
         FileAction(String name) {
@@ -217,6 +294,7 @@ public class SketcherFrame extends JFrame {
         public void actionPerformed(ActionEvent e) {
             elementType = typeID;
             setChecks(colorMenu, e.getSource());
+            statusBar.setTypePane(typeID);
         }
         private int typeID;
     }
@@ -235,7 +313,19 @@ public class SketcherFrame extends JFrame {
             }
         }
         public void actionPerformed(ActionEvent e) {
-            elementColor = color;
+            if(this == customAction) {
+                Color newColor = JColorChooser.showDialog(SketcherFrame.this,
+                                                "Select Custom Color", customColor);
+                if(newColor != null) {
+                    elementColor = customColor = newColor;
+                    setCustomIconColor(CUSTOM16, customColor);
+                    setCustomIconColor(CUSTOM24, customColor);
+                    toolBar.repaint();
+                }
+            } else {
+                elementColor = color;
+            }
+            statusBar.setColorPane(elementColor);
             setChecks(colorMenu, e.getSource());
         }
         private Color color;
@@ -249,21 +339,39 @@ public class SketcherFrame extends JFrame {
     public int getElementType() {
         return elementType;
     }
+    public Font getFont() {
+        return textFont;
+    }
+    public void setFont(Font font) {
+        textFont = font;
+    }
+    public JPopupMenu getPopup() {
+        return popup;
+    }
     
     private Sketcher theApp;
     private JMenu elementMenu, colorMenu;
     private JMenuBar menuBar = new JMenuBar();
     private JToolBar toolBar = new JToolBar();
+    private StatusBar statusBar = new StatusBar();
+    private JMenuItem aboutItem;
+    private JMenu optionsMenu;
+    private FontDialog fontDialog;
+    private JMenuItem fontItem;
+    private JPopupMenu popup = new JPopupMenu("General");
+    
+    private Color customColor = DEFAULT_ELEMENT_COLOR;
     private Color elementColor = DEFAULT_ELEMENT_COLOR;
     private int elementType = DEFAULT_ELEMENT_TYPE;
+    private Font textFont = DEFAULT_FONT;
     
     private FileAction newAction, openAction, closeAction, saveAction, saveAsAction,
                        printAction, exitAction;
     private FileAction[] fileActions;
     
-    private TypeAction lineAction, rectangleAction, circleAction, curveAction;
+    private TypeAction lineAction, rectangleAction, circleAction, curveAction, textAction;
     private TypeAction[] typeActions;
     
-    private ColorAction redAction, greenAction, blueAction, yellowAction;
+    private ColorAction redAction, greenAction, blueAction, yellowAction, customAction;
     private ColorAction[] colorActions;  
 }

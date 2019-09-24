@@ -40,6 +40,29 @@ public abstract class Element implements Serializable {
     public java.awt.Rectangle getBounds() {
         return bounds;
     }
+    public void setHighlighted(boolean highlighted) {
+        this.highlighted = highlighted;
+    }
+    public void setRotation(double angle) {
+        this.angle = angle;
+    }
+    public double getRotation() {
+        return angle;
+    }
+    
+    public void move(int deltaX, int deltaY) {
+        position.translate(deltaX, deltaY);
+        bounds.translate(deltaX, deltaY);
+    }
+    
+    protected void draw(Graphics2D g2D, Shape element) {
+        g2D.setPaint(highlighted ? HIGHLIGHT_COLOR : color);
+        AffineTransform old = g2D.getTransform();
+        g2D.translate((double)position.x, (double)position.y);
+        g2D.rotate(angle);
+        g2D.draw(element);
+        g2D.setTransform(old);
+    }
     
     // nested class defining a line
     public static class Line extends Element {
@@ -63,10 +86,7 @@ public abstract class Element implements Serializable {
         // display the line
         @Override
         public void draw(Graphics2D g2D) {
-            g2D.setPaint(color);
-            g2D.translate(position.x, position.y);
-            g2D.draw(line);
-            g2D.translate(-position.x, -position.y);
+            draw(g2D, line);
         }
         private Line2D.Double line;
         private final static long serialVersionUID = 1001L;
@@ -85,10 +105,7 @@ public abstract class Element implements Serializable {
         // display the rectangle
         @Override
         public void draw(Graphics2D g2D) {
-            g2D.setPaint(color);
-            g2D.translate(position.x, position.y);
-            g2D.draw(rectangle);
-            g2D.translate(-position.x, -position.y);
+            draw(g2D, rectangle);
         }
         // method to redefine the rectangle
         @Override
@@ -117,10 +134,7 @@ public abstract class Element implements Serializable {
         // Display the circle
         @Override
         public void draw(Graphics2D g2D) {
-            g2D.setPaint(color);
-            g2D.translate(position.x, position.y);
-            g2D.draw(circle);
-            g2D.translate(-position.x, -position.y);
+            draw(g2D, circle);
         }
         // Recreate this circle
         @Override
@@ -156,12 +170,44 @@ public abstract class Element implements Serializable {
         // Display the curve
         @Override
         public void draw(Graphics2D g2D) {
-            g2D.setPaint(color);
-            g2D.translate(position.x, position.y);
-            g2D.draw(curve);
-            g2D.translate(-position.x, -position.y);
+            draw(g2D, curve);
         }
         private GeneralPath curve;
+        private final static long serialVersionUID = 1001L;
+    }
+    
+    // Nested class defining a text
+    public static class Text extends Element {
+        public Text(String text, Point start, Color color, FontMetrics fm) {
+            super(start, color);
+            this.text = text;
+            this.font = fm.getFont();
+            maxAscent = fm.getMaxAscent();
+            bounds = new java.awt.Rectangle(position.x, position.y,
+                       fm.stringWidth(text)+4, maxAscent + fm.getMaxDescent()+4);
+            //System.out.println(bounds); NOT NECESSARY
+        }
+        @Override
+        public void draw(Graphics2D g2D) {
+            g2D.setPaint(highlighted ? HIGHLIGHT_COLOR : color);
+            Font oldFont = g2D.getFont();
+            g2D.setFont(font);
+            AffineTransform old = g2D.getTransform();
+            // add translation transform to current
+            g2D.translate((double)position.x, (double)position.y);
+            g2D.rotate(angle);
+            // reference point for drawString() is the baseline of the 1st character
+            g2D.drawString(text, origin.x + 2, maxAscent + 2);
+            g2D.setTransform(old);
+            g2D.setFont(oldFont);
+        }
+        @Override
+        public void modify(Point start, Point last) {
+            // no code required here, but you must supply a definition
+        }
+        private Font font;
+        private int maxAscent;
+        private String text;
         private final static long serialVersionUID = 1001L;
     }
     
@@ -171,6 +217,8 @@ public abstract class Element implements Serializable {
     protected Point position;
     protected Color color;
     protected java.awt.Rectangle bounds;
+    protected boolean highlighted = false;
+    protected double angle = 0.0;
     private final static long serialVersionUID = 1001L;
     static final Point origin = new Point();
 }
