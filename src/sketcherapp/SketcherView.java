@@ -1,28 +1,26 @@
 
 package sketcherapp;
-import javax.swing.JComponent;
 import java.util.*;
 import java.awt.*;
+import java.awt.geom.*;
+import java.awt.print.*;
 import java.awt.event.*;
+import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
 import static sketcherapp.SketcherConstants.*;
-import java.awt.geom.*;
-import javax.swing.*;
 
-public class SketcherView extends JComponent implements Observer {
+public class SketcherView extends JComponent implements Observer, Printable, Pageable {
     
     public SketcherView(Sketcher theApp) {
         this.theApp = theApp;
         MouseHandler handler = new MouseHandler();
         addMouseListener(handler);
         addMouseMotionListener(handler);
-        
         // add the pop-up menu items
         JMenuItem moveItem = elementPopup.add(new JMenuItem("Move"));
         JMenuItem deleteItem = elementPopup.add(new JMenuItem("Delete"));
         JMenuItem rotateItem = elementPopup.add(new JMenuItem("Rotate"));
         JMenuItem sendToBackItem = elementPopup.add(new JMenuItem("Send-to-back"));
-        
         // create the menu item listeners
         moveItem.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -48,9 +46,66 @@ public class SketcherView extends JComponent implements Observer {
         });
     }
     
-    // method called by observable object when it changes
+    // Method to return page count - always two pages
+    public int getNumberOfPages() {
+        return 2;
+    }
+    
+    // Method to return the Printable object that will render the page
+    public Printable getPrintable(int pageIndex) {
+        if(pageIndex == 0) {
+            return new SketchCoverPage(theApp.getWindow().getSketchName());
+        } else {
+            return this;
+        }
+    }
+    
+    public PageFormat getPageFormat(int pageIndex) {
+        if(pageIndex == 0) {
+            PageFormat pageFormat = 
+                    (PageFormat)(theApp.getWindow().getPageFormat().clone());
+            Paper paper = pageFormat.getPaper();
+            
+            double leftMargin = paper.getImageableX();
+            double topMargin = paper.getImageableY();
+            double rightMargin = paper.getWidth()-paper.getImageableWidth()-leftMargin;
+            double bottomMargin = paper.getHeight()-paper.getImageableHeight()-topMargin;
+            leftMargin *= 2.0;
+            rightMargin *= 2.0;
+            topMargin *= 2.0;
+            bottomMargin *= 2.0;
+            
+            paper.setImageableArea(leftMargin, topMargin,
+                                   paper.getWidth() - leftMargin - rightMargin, 
+                                   paper.getHeight() - topMargin - bottomMargin);
+            pageFormat.setPaper(paper);
+            pageFormat.setOrientation(PageFormat.LANDSCAPE);
+            return pageFormat;
+        }
+        return theApp.getWindow().getPageFormat();
+    }
+    
+    // Print the sketch on a local printer
+    @Override
+    public int print(Graphics g, PageFormat pageFormat, int pageIndex)
+                            throws PrinterException {
+        //if(pageIndex > 0) {
+         //   return NO_SUCH_PAGE;
+        //}
+        Graphics2D g2D = (Graphics2D) g;
+        Rectangle rect = theApp.getModel().getModelExtent();
+        double scaleX = pageFormat.getImageableWidth()/rect.width;
+        double scaleY = pageFormat.getImageableHeight()/rect.height;
+        double scale = Math.min(scaleX, scaleY);
+        g2D.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+        g2D.scale(scale, scale);
+        g2D.translate(-rect.x, -rect.y);
+        paint(g2D);
+        return PAGE_EXISTS;
+    }
+    
+    // Method called by observable object when it changes
     public void update(Observable o, Object rectangle) {
-        // code to respond to changes in the model
         if(rectangle != null) {
             repaint((Rectangle)rectangle); // this rectangle is the area occupied by the new element
         } else {
@@ -77,6 +132,7 @@ public class SketcherView extends JComponent implements Observer {
             }
         }
     }
+    
     private void deleteElement() {
         if(highlightElement != null) {
             if(!theApp.getModel().remove(highlightElement)) {
@@ -107,6 +163,7 @@ public class SketcherView extends JComponent implements Observer {
                 g2D.setXORMode(getBackground());
             }
         }
+        
         @Override
         public void mouseDragged(MouseEvent e) {
             last = e.getPoint();
@@ -143,9 +200,9 @@ public class SketcherView extends JComponent implements Observer {
                         }
                     }
                 break;
-            }
-            
+            }   
         }
+        
         @Override
         public void mouseReleased(MouseEvent e) {
             if(mode == MOVE || mode == ROTATE) {
@@ -177,6 +234,7 @@ public class SketcherView extends JComponent implements Observer {
                 start = last = null;
             }
         }
+        
         @Override
         public void mouseClicked(MouseEvent e) {
             // only if it's TEXT and button1 was clicked
@@ -198,6 +256,7 @@ public class SketcherView extends JComponent implements Observer {
                 start = null;
             }   
         }
+        
         @Override
         public void mouseMoved(MouseEvent e) {
             Point cursor = e.getPoint();
@@ -222,14 +281,17 @@ public class SketcherView extends JComponent implements Observer {
                 highlightElement = null;
             }
         }
+        
         @Override
         public void mouseEntered(MouseEvent e) {
             setCursor(Cursor.getPredefinedCursor(Cursor.CROSSHAIR_CURSOR));
         }
+        
         @Override
         public void mouseExited(MouseEvent e) {
             setCursor(Cursor.getDefaultCursor());
         }
+        
         private boolean showContextMenu(MouseEvent e) {
             if(e.isPopupTrigger()) {
                 if(last != null) {
@@ -244,6 +306,7 @@ public class SketcherView extends JComponent implements Observer {
             }
             return false;
         }
+        
         double getAngle(Point position, Point start, Point last) {
             double perp = Line2D.ptLineDist(position.x, position.y, last.x, last.y, start.x, start.y);
             double hypotenuse = position.distance(start);
@@ -251,6 +314,7 @@ public class SketcherView extends JComponent implements Observer {
             return -Line2D.relativeCCW(position.x, position.y, start.x, start.y,
                     last.x, last.y)*Math.asin(perp/hypotenuse);
         }
+        
         private Point start;
         private Point last;
         private Element tempElement;

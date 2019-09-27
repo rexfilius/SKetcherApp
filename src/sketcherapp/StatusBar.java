@@ -1,7 +1,7 @@
 
 package sketcherapp;
-import javax.swing.*;
 import java.awt.*;
+import javax.swing.*;
 import javax.swing.border.BevelBorder;
 import static sketcherapp.SketcherConstants.*;
 
@@ -19,7 +19,6 @@ public class StatusBar extends JPanel {
     }
     
     public void setColorPane(Color color) {
-        // code to set the color pane contents...
         String text = null;
         Icon icon = null;
         if(color.equals(Color.RED)) {
@@ -42,7 +41,6 @@ public class StatusBar extends JPanel {
     }
     
     public void setTypePane(int elementType) {
-        // code to set the type pane contents...
         String text = null;
         switch(elementType) {
             case LINE:
@@ -65,10 +63,6 @@ public class StatusBar extends JPanel {
         typePane.setText(text);
     }
     
-    // Panes in the status bar
-    private StatusPane colorPane = new StatusPane("BLUE", BLUE16);
-    private StatusPane typePane = new StatusPane("LINE");
-    
     class StatusPane extends JLabel {
         public StatusPane(String text) {
             super(text, LEFT);
@@ -89,4 +83,8 @@ public class StatusBar extends JPanel {
         }
         private Font paneFont = new Font("Serif", Font.PLAIN, 10);
     }
+    
+    // Panes in the status bar
+    private StatusPane colorPane = new StatusPane("BLUE", BLUE16);
+    private StatusPane typePane = new StatusPane("LINE");
 }

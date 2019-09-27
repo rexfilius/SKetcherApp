@@ -7,14 +7,14 @@ import static sketcherapp.SketcherConstants.*;
 
 public abstract class Element implements Serializable {
     
-    protected Element(Color color) {
-        this.color = color;
-    }
-    
-    protected Element(Point position, Color color) {
+    public Element(Point position, Color color) {
         this.position = position;
         this.color = color;
     }
+    
+    protected Element(Color color) {
+        this.color = color;
+    } 
     
     public static Element createElement(int type, Color color, Point start, Point end) {
         switch(type) {
@@ -55,6 +55,9 @@ public abstract class Element implements Serializable {
         bounds.translate(deltaX, deltaY);
     }
     
+    public abstract void draw(Graphics2D g2D);
+    public abstract void modify(Point start, Point last);
+    
     protected void draw(Graphics2D g2D, Shape element) {
         g2D.setPaint(highlighted ? HIGHLIGHT_COLOR : color);
         AffineTransform old = g2D.getTransform();
@@ -64,7 +67,7 @@ public abstract class Element implements Serializable {
         g2D.setTransform(old);
     }
     
-    // nested class defining a line
+    // Nested class defining a line
     public static class Line extends Element {
         public Line(Point start, Point end, Color color) {
             super(start, color);
@@ -74,7 +77,7 @@ public abstract class Element implements Serializable {
                                     Math.min(start.x, end.x), Math.min(start.y, end.y),
                                     Math.abs(start.x - end.x)+1, Math.abs(start.y - end.y)+1);
         }
-        // change the end point for the line
+        // Change the end point for the line
         @Override
         public void modify(Point start, Point last) {
             line.x2 = last.x - position.x;
@@ -83,7 +86,7 @@ public abstract class Element implements Serializable {
                                     Math.min(start.x, last.x), Math.min(start.y, last.y),
                                     Math.abs(start.x - last.x)+1, Math.abs(start.y - last.y)+1);
         }
-        // display the line
+        // Display the line
         @Override
         public void draw(Graphics2D g2D) {
             draw(g2D, line);
@@ -92,7 +95,7 @@ public abstract class Element implements Serializable {
         private final static long serialVersionUID = 1001L;
     }
     
-    // nested class defining a rectangle
+    // Nested class defining a rectangle
     public static class Rectangle extends Element {
         public Rectangle(Point start, Point end, Color color) {
             super(new Point(Math.min(start.x, end.x), Math.min(start.y, end.y)), color);
@@ -102,12 +105,12 @@ public abstract class Element implements Serializable {
                                     Math.min(start.x, end.x), Math.min(start.y, end.y),
                                     Math.abs(start.x - end.x)+1, Math.abs(start.y - end.y)+1);
         }
-        // display the rectangle
+        // Display the rectangle
         @Override
         public void draw(Graphics2D g2D) {
             draw(g2D, rectangle);
         }
-        // method to redefine the rectangle
+        // Method to redefine the rectangle
         @Override
         public void modify(Point start, Point last) {
             bounds.x = position.x = Math.min(start.x, last.x);
@@ -185,7 +188,6 @@ public abstract class Element implements Serializable {
             maxAscent = fm.getMaxAscent();
             bounds = new java.awt.Rectangle(position.x, position.y,
                        fm.stringWidth(text)+4, maxAscent + fm.getMaxDescent()+4);
-            //System.out.println(bounds); NOT NECESSARY
         }
         @Override
         public void draw(Graphics2D g2D) {
@@ -210,9 +212,6 @@ public abstract class Element implements Serializable {
         private String text;
         private final static long serialVersionUID = 1001L;
     }
-    
-    public abstract void draw(Graphics2D g2D);
-    public abstract void modify(Point start, Point last);
     
     protected Point position;
     protected Color color;

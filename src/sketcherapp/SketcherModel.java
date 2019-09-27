@@ -2,10 +2,11 @@
 package sketcherapp;
 import java.io.Serializable;
 import java.util.*;
+import java.awt.Rectangle;
 
 public class SketcherModel extends Observable implements Serializable, Iterable<Element> {
     
-    // remove an element from the sketch
+    // Remove an element from the sketch
     public boolean remove(Element element) {
         boolean removed = elements.remove(element);
         if(removed) {
@@ -15,17 +16,32 @@ public class SketcherModel extends Observable implements Serializable, Iterable<
         return removed;
     }
     
-    // add an element to the sketch
+    // Add an element to the sketch
     public void add(Element element) {
         elements.add(element);
         setChanged();
         notifyObservers(element.getBounds());
     }
     
-    // get iterator for sketch elements
+    // Get iterator for sketch elements
     @Override
     public Iterator<Element> iterator() {
         return elements.iterator();
+    }
+    
+    // Get the rectangle enclosing an entire sketch
+    Rectangle getModelExtent() {
+        Rectangle rect = new Rectangle();
+        for(Element element : elements) {
+            rect.add(element.getBounds());
+        }
+        if(rect.width == 0) {
+            rect.width = 2;
+        }
+        if(rect.height == 0) {
+            rect.height = 2;
+        }
+        return rect;
     }
     
     protected LinkedList<Element> elements = new LinkedList<>();

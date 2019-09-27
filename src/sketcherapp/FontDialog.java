@@ -75,15 +75,7 @@ public class FontDialog extends JDialog implements ActionListener, ListSelection
         dataPane.add(stylePane);
         getContentPane().add(dataPane, BorderLayout.CENTER);
         pack();
-        setVisible(false);
-        
-        
-        // code to create font size choice and add it to the input panel
-        
-        // code to create font style checkboxes and add them to the input panel
-        
-        //...and then some
-        
+        setVisible(false); 
     }
     
     JButton createButton(String label) {
@@ -153,6 +145,5 @@ public class FontDialog extends JDialog implements ActionListener, ListSelection
     private JSpinner chooseSize;
     private JLabel fontDisplay;
     private JRadioButton bold;
-    private JRadioButton italic;
-    
+    private JRadioButton italic; 
 }

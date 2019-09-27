@@ -1,26 +1,36 @@
 
 package sketcherapp;
 
+import java.io.*;
+import java.nio.file.*;
+import java.util.*;
 import java.awt.*;
+import java.awt.event.*;
+import java.awt.print.*;
 import java.awt.image.BufferedImage;
 import java.awt.font.TextLayout;
 import java.awt.geom.Rectangle2D;
-import java.awt.event.*;
-//import java.awt.Color;
-//import java.awt.BorderLayout;
 import javax.swing.*;
 import javax.swing.border.*;
-import static sketcherapp.SketcherConstants.*;
+import javax.print.PrintService;
+import javax.print.attribute.HashPrintRequestAttributeSet;
 import static java.awt.Color.*;
-//import static java.awt.AWTEvent.*;
 import static java.awt.event.InputEvent.*;
 import static javax.swing.Action.*;
+import static sketcherapp.SketcherConstants.*;
 
-public class SketcherFrame extends JFrame implements ActionListener {
+public class SketcherFrame extends JFrame implements ActionListener, Observer, Printable {
     
     @SuppressWarnings("serial")
     public SketcherFrame(String title, Sketcher theApp) {
+        printJob = PrinterJob.getPrinterJob();
+        pageFormat = printJob.defaultPage();
+        printer = printJob.getPrintService();
+        
+        checkDirectory(DEFAULT_DIRECTORY);
+        fileChooser = new JFileChooser(DEFAULT_DIRECTORY.toString());
         setTitle(title);
+        frameTitle = title;
         this.theApp = theApp;
         setJMenuBar(menuBar);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
@@ -46,7 +56,6 @@ public class SketcherFrame extends JFrame implements ActionListener {
         toolBar.setFloatable(false);
         JMenu helpMenu = new JMenu("Help");
         helpMenu.setMnemonic('H');
-        
         // Add the About item to the Help Menu
         aboutItem = new JMenuItem("About");
         aboutItem.addActionListener(this);
@@ -54,6 +63,33 @@ public class SketcherFrame extends JFrame implements ActionListener {
         menuBar.add(helpMenu);
         getContentPane().add(toolBar, BorderLayout.NORTH);
         getContentPane().add(statusBar, BorderLayout.SOUTH);
+    }
+    
+    public Color getElementColor() {
+        return elementColor;
+    }
+    public int getElementType() {
+        return elementType;
+    }
+    public Font getFont() {
+        return textFont;
+    }
+    public void setFont(Font font) {
+        textFont = font;
+    }
+    public JPopupMenu getPopup() {
+        return popup;
+    }
+    public String getSketchName() {
+       return currentSketchFile == null ? DEFAULT_FILENAME.toString() : 
+                                          currentSketchFile.getFileName().toString();
+    }
+    public PageFormat getPageFormat() {
+        return pageFormat;
+    }
+    // Method called by SketcherModel object when it changes
+    public void update(Observable o, Object obj) {
+        sketchChanged = true;
     }
     
     private void createFileMenuActions() {
@@ -86,10 +122,46 @@ public class SketcherFrame extends JFrame implements ActionListener {
         saveAsAction.putValue(SHORT_DESCRIPTION, "Save the current sketch to a new file");
         printAction.putValue(SHORT_DESCRIPTION, "Print the current sketch"); 
     }
+    
     private void createFileMenu() {
         JMenu fileMenu = new JMenu("File");
         fileMenu.setMnemonic('F');
         createFileMenuActions();
+        // create print setup menu item
+        JMenuItem printSetupItem = new JMenuItem("Print setup...");
+        printSetupItem.setToolTipText("Setup the page for the printer");
+        printSetupItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                PageFormat pf = printJob.pageDialog(printAttr);
+                if(pf != null) {
+                    pageFormat = pf;
+                }
+            }
+        });
+        // Menu item to print the application window
+        JMenuItem printWindowItem = new JMenuItem("Print Window");
+        printWindowItem.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                if(printer == null) {
+                    JOptionPane.showMessageDialog(SketcherFrame.this,
+                                                  "No default printer available.",
+                                                  "Printer Error",
+                                                  JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                printJob.setPrintable(SketcherFrame.this, pageFormat);
+                try {
+                    printJob.print();
+                } catch(PrinterException pe) {
+                    System.out.println(pe);
+                    JOptionPane.showMessageDialog(SketcherFrame.this,
+                                                  "Error printing the application window.",
+                                                  "Printer Error",
+                                                  JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        });
+        // file drop-down menu
         fileMenu.add(newAction);
         fileMenu.add(openAction);
         fileMenu.add(closeAction);
@@ -98,10 +170,13 @@ public class SketcherFrame extends JFrame implements ActionListener {
         fileMenu.add(saveAsAction);
         fileMenu.addSeparator();
         fileMenu.add(printAction);
+        fileMenu.add(printSetupItem);
+        fileMenu.add(printWindowItem);
         fileMenu.addSeparator();
         fileMenu.add(exitAction);
         menuBar.add(fileMenu);
     }
+    
     private void createElementTypeActions() {
         lineAction = new TypeAction("Line", LINE, 'L', CTRL_DOWN_MASK);
         rectangleAction = new TypeAction("Rectangle", RECTANGLE, 'R', CTRL_DOWN_MASK);
@@ -129,6 +204,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
         curveAction.putValue(SHORT_DESCRIPTION, "Draw curves");
         textAction.putValue(SHORT_DESCRIPTION, "Draw Text");
     }
+    
     private void createElementMenu() {
         createElementTypeActions();
         elementMenu = new JMenu("Elements");
@@ -136,6 +212,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
         createRadioButtonDropDown(elementMenu, typeActions, lineAction);
         menuBar.add(elementMenu);
     }
+    
     private void createElementColorActions() {
         redAction = new ColorAction("Red", RED, 'R', CTRL_DOWN_MASK|ALT_DOWN_MASK);
         yellowAction = new ColorAction("Yellow", YELLOW, 'Y', CTRL_DOWN_MASK|ALT_DOWN_MASK);
@@ -163,6 +240,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
         yellowAction.putValue(SHORT_DESCRIPTION, "Draw in yellow");
         customAction.putValue(SHORT_DESCRIPTION, "Draw in custom color");
     }
+    
     private void createColorMenu() {
         createElementColorActions();
         colorMenu = new JMenu("Color");
@@ -170,7 +248,8 @@ public class SketcherFrame extends JFrame implements ActionListener {
         createRadioButtonDropDown(colorMenu, colorActions, blueAction);
         menuBar.add(colorMenu);
     }
-    // radio button menu items for Element Menu and Color Menu
+    
+    // Radio button menu items for Element Menu and Color Menu
     private void createRadioButtonDropDown(JMenu menu, Action[] actions, Action selected) {
         ButtonGroup group = new ButtonGroup();
         JRadioButtonMenuItem item = null;
@@ -196,6 +275,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
             addToolbarButton(action);
         }
     }
+    
     private void addToolbarButton(Action action) {
         JButton button = new JButton(action);
         button.setBorder(BorderFactory.createCompoundBorder( 
@@ -204,7 +284,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
         toolBar.add(button);
     }
     
-    // setting menu item checks when a toolbar button is clicked for Elements and Color menu
+    // Setting menu item checks when a toolbar button is clicked for Elements and Color menu
     private void setChecks(JMenu menu, Object eventSource) {
         if(eventSource instanceof JButton) {
             JButton button = (JButton)eventSource;
@@ -247,6 +327,171 @@ public class SketcherFrame extends JFrame implements ActionListener {
         g2D.dispose();
     }
     
+    private void checkDirectory(Path directory) {
+        if(Files.notExists(directory)) {
+            JOptionPane.showMessageDialog(null, "Creating directory: " + directory,
+                                          "Directory Not Found", JOptionPane.INFORMATION_MESSAGE);
+            try {
+                Files.createDirectories(directory);
+            } catch(IOException e) {
+                e.printStackTrace();
+                JOptionPane.showMessageDialog(null, "Cannot create: " + directory +
+                ". Terminating Sketcher.", "Directory Creation Failed",JOptionPane.ERROR_MESSAGE);
+                System.exit(1);
+            }
+        }
+    }
+    
+    private Path showDialog(String dialogTitle, String approveButtonText,
+                            String approveButtonTooltip, ExtensionFilter filter, Path file) {
+        fileChooser.setDialogTitle(dialogTitle);
+        fileChooser.setApproveButtonText(approveButtonText);
+        fileChooser.setApproveButtonToolTipText(approveButtonTooltip);
+        fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
+        fileChooser.addChoosableFileFilter(filter);
+        fileChooser.setFileFilter(filter);
+        
+        fileChooser.rescanCurrentDirectory();
+        Path selectedFile = null;
+        if(file == null) {
+            selectedFile = Paths.get(
+                        fileChooser.getCurrentDirectory().toString(), DEFAULT_FILENAME);
+        } else {
+            selectedFile = file;
+        }
+        fileChooser.setSelectedFile(selectedFile.toFile());
+        // show the file save dialog
+        int result = fileChooser.showDialog(this, null);
+        return (result == JFileChooser.APPROVE_OPTION) ? 
+                Paths.get(fileChooser.getSelectedFile().getPath()) : null;
+    }
+    
+    private void saveOperation() {
+        if(!sketchChanged) {
+            return;
+        }
+        if(currentSketchFile != null) {
+            if(saveSketch(currentSketchFile)) {
+                sketchChanged = false;
+            }
+            return;
+        }
+        // here the sketch was never saved i.e currentSketchFile = null
+        Path file = showDialog("Save Sketch", "Save", "Save the sketch", sketchFilter,
+                                    Paths.get(DEFAULT_FILENAME));
+        if(file == null) {
+            return;
+        }
+        file = setFileExtension(file, "ske");
+        if(Files.exists(file) && 
+                JOptionPane.NO_OPTION == 
+                    JOptionPane.showConfirmDialog(this, file.getFileName() + " exists. Overwrite?",
+                                                  "Confirm Save As", JOptionPane.YES_NO_OPTION,
+                                                  JOptionPane.WARNING_MESSAGE)) {
+            return;
+        }
+        if(saveSketch(file)) {
+            currentSketchFile = file;
+            setTitle(frameTitle + " - " + currentSketchFile);
+            sketchChanged = false;
+        }
+    }
+    
+    private void saveAsOperation() {
+        Path file = showDialog("Save Sketch As", "Save", "Save the sketch", sketchFilter,
+                    currentSketchFile == null ? Paths.get(DEFAULT_FILENAME) : currentSketchFile);
+        if(file == null) {
+            return;
+        }
+        file = setFileExtension(file, "ske");
+        if(Files.exists(file) && !file.equals(currentSketchFile) && 
+                JOptionPane.NO_OPTION == JOptionPane.showConfirmDialog(this,
+                                                      file.getFileName() + " exists. Overwrite?",
+                                                      "Confirm Save As",
+                                                      JOptionPane.NO_OPTION,
+                                                      JOptionPane.WARNING_MESSAGE)) {
+            return;
+        }
+        if(saveSketch(file)) {
+            currentSketchFile = file;
+            setTitle(frameTitle + " - " + currentSketchFile);
+            sketchChanged = false;
+        }
+    }
+    
+    // set the extension for a file path
+    private Path setFileExtension(Path file, String extension) {
+        StringBuffer fileName = new StringBuffer(file.getFileName().toString());
+        if(fileName.indexOf(extension) >= 0) {
+            return file;
+        }
+        int index = fileName.lastIndexOf(".");
+        if(index < 0) {
+            fileName.append(".").append(extension);
+        }
+        return file.getParent().resolve(fileName.toString());
+    }
+    
+    // write a sketch
+    private boolean saveSketch(Path file) {
+        try(ObjectOutputStream out = new ObjectOutputStream(
+                new BufferedOutputStream(Files.newOutputStream(file)))) {
+            out.writeObject(theApp.getModel());
+        } catch(IOException e) {
+            System.err.println(e);
+            JOptionPane.showMessageDialog(this, "Error writing a sketch to " + file,
+                                    "File Output Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
+    }
+    
+    // Method for opening a sketch file and creating the model
+    public boolean openSketch(Path file) {
+        try(ObjectInputStream in = new ObjectInputStream(
+                new BufferedInputStream(Files.newInputStream(file)))) {
+            theApp.insertModel((SketcherModel)in.readObject());
+            currentSketchFile = file;
+            setTitle(frameTitle + " - " + currentSketchFile);
+            sketchChanged = false;
+        } catch(Exception e) {
+            System.err.println(e);
+            JOptionPane.showMessageDialog(this, "Error reading a sketch file.",
+                                          "File Input Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
+    }
+    
+    // Prompt for save operation when necessary for File Open
+    public void checkForSave() {
+        if(sketchChanged && JOptionPane.YES_OPTION == 
+                            JOptionPane.showConfirmDialog(this,
+                                                          "Current file has changed. Save current file?",
+                                                          "Confirm Save Current File",
+                                                          JOptionPane.YES_NO_OPTION,
+                                                          JOptionPane.WARNING_MESSAGE)) {
+            saveOperation();
+        }
+    }
+    
+    // Print the window
+    @Override
+    public int print(Graphics g, PageFormat pageFormat, int pageIndex)
+                            throws PrinterException {
+        if(pageIndex > 0) {
+            return NO_SUCH_PAGE;
+        }
+        Graphics2D g2D = (Graphics2D) g;
+        double scaleX = pageFormat.getImageableWidth()/getWidth();
+        double scaleY = pageFormat.getImageableHeight()/getHeight();
+        double scale = Math.min(scaleX, scaleY);
+        g2D.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+        g2D.scale(scale, scale);
+        printAll(g2D);
+        return PAGE_EXISTS;
+    }
+    
     // Handle About menu events
     @Override
     public void actionPerformed(ActionEvent e) {
@@ -260,7 +505,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
         }
     }
     
-    // inner class defining Action objects for File Menu items
+    // Inner class defining Action objects for File Menu items
     class FileAction extends AbstractAction {
         FileAction(String name) {
             super(name);
@@ -274,10 +519,62 @@ public class SketcherFrame extends JFrame implements ActionListener {
             }
         }
         public void actionPerformed(ActionEvent e) {
-            
+            if(this == saveAction) {
+                saveOperation();
+                return;
+            } else if(this == saveAsAction) {
+                saveAsOperation();
+                return;
+            } else if(this == openAction) {
+                checkForSave();
+                Path file = showDialog("Open Sketch File", "Open", "Read a sketch from file",
+                                        sketchFilter, null);
+                if(file != null) {
+                    if(openSketch(file)) {
+                        currentSketchFile = file;
+                        setTitle(frameTitle + " - " + currentSketchFile);
+                        sketchChanged = false;
+                    }
+                }   
+            } else if(this == newAction || this == closeAction) {
+                checkForSave();
+                theApp.insertModel(new SketcherModel());
+                currentSketchFile = null;
+                setTitle(frameTitle);
+                sketchChanged = false;
+                return;
+            } else if(this == printAction) {
+                if(printer == null) {
+                    JOptionPane.showMessageDialog(SketcherFrame.this,
+                                                  "No default printer available.",
+                                                  "Printer Error",
+                                                  JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                printJob.setPageable(theApp.getView());
+                boolean printIt = true;
+                if(!(e.getSource() instanceof JButton)) {
+                    printIt = printJob.printDialog();
+                }
+                if(printIt) {
+                    try {
+                        printJob.print(printAttr);
+                    } catch(PrinterException pe) {
+                        System.out.println(pe);
+                        JOptionPane.showMessageDialog(SketcherFrame.this,
+                                                      "Error printing a sketch.",
+                                                      "Printer Error",
+                                                      JOptionPane.ERROR_MESSAGE);
+                    }
+                }
+            } else if(this == exitAction) {
+                checkForSave();
+                System.exit(0);
+            }
         }
     }
-    // inner class defining Action objects for Element Type menu items
+    
+    // Inner class defining Action objects for Element Type menu items
     class TypeAction extends AbstractAction {
         TypeAction(String name, int typeID) {
             super(name);
@@ -298,7 +595,8 @@ public class SketcherFrame extends JFrame implements ActionListener {
         }
         private int typeID;
     }
-    // inner class defining Action objects for Element Color menu items
+    
+    // Inner class defining Action objects for Element Color menu items
     class ColorAction extends AbstractAction {
         public ColorAction(String name, Color color) {
             super(name);
@@ -330,25 +628,7 @@ public class SketcherFrame extends JFrame implements ActionListener {
         }
         private Color color;
     }
-    
-    // return the current drawing color
-    public Color getElementColor() {
-        return elementColor;
-    }
-    // return the current element type
-    public int getElementType() {
-        return elementType;
-    }
-    public Font getFont() {
-        return textFont;
-    }
-    public void setFont(Font font) {
-        textFont = font;
-    }
-    public JPopupMenu getPopup() {
-        return popup;
-    }
-    
+     
     private Sketcher theApp;
     private JMenu elementMenu, colorMenu;
     private JMenuBar menuBar = new JMenuBar();
@@ -359,6 +639,17 @@ public class SketcherFrame extends JFrame implements ActionListener {
     private FontDialog fontDialog;
     private JMenuItem fontItem;
     private JPopupMenu popup = new JPopupMenu("General");
+    
+    private String frameTitle;
+    private Path currentSketchFile;
+    private boolean sketchChanged = false;
+    private JFileChooser fileChooser;
+    private ExtensionFilter sketchFilter = new ExtensionFilter(".ske", "Sketch files(*.ske)");
+    
+    private PrinterJob printJob;
+    private PageFormat pageFormat;
+    private PrintService printer;
+    private HashPrintRequestAttributeSet printAttr = new HashPrintRequestAttributeSet();
     
     private Color customColor = DEFAULT_ELEMENT_COLOR;
     private Color elementColor = DEFAULT_ELEMENT_COLOR;

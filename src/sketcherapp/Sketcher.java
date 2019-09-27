@@ -1,8 +1,8 @@
 
 package sketcherapp;
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import javax.swing.*;
 
 public class Sketcher {
     
@@ -26,9 +26,18 @@ public class Sketcher {
         sketch = new SketcherModel();
         view = new SketcherView(this);
         sketch.addObserver(view);
+        sketch.addObserver(window);
         
         window.getContentPane().add(view, BorderLayout.CENTER);
         window.setVisible(true);
+    }
+    
+    // Insert a new sketch model
+    public void insertModel(SketcherModel newSketch) {
+        sketch = newSketch;
+        sketch.addObserver(view);
+        sketch.addObserver(window);
+        view.repaint();
     }
     
     // return a reference to the application window
@@ -50,14 +59,12 @@ public class Sketcher {
     class WindowHandler extends WindowAdapter {
         @Override
         public void windowClosing(WindowEvent e) {
-            window.dispose();
-            System.exit(0);
+            window.checkForSave();
         }
     }
     
     private SketcherModel sketch;
     private SketcherView view;
     private static SketcherFrame window;
-    private static Sketcher theApp;
-    
+    private static Sketcher theApp;    
 }
