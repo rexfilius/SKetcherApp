@@ -85,6 +85,7 @@ public class FontDialog extends JDialog implements ActionListener, ListSelection
         return button;
     }
     
+    // ActionListener method
     @Override
     public void actionPerformed(ActionEvent e) {
         if(e.getSource() == ok) {

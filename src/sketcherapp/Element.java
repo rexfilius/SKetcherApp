@@ -14,8 +14,9 @@ public abstract class Element implements Serializable {
     
     protected Element(Color color) {
         this.color = color;
-    } 
+    }
     
+    // Creates a new element
     public static Element createElement(int type, Color color, Point start, Point end) {
         switch(type) {
             case LINE:
@@ -31,25 +32,38 @@ public abstract class Element implements Serializable {
         }
         return null;
     }
+    
+    // Returns the color of the element
     public Color getColor() {
         return color;
     }
+    
+    // Returns the position of the element
     public Point getPosition() {
         return position;
     }
+    
+    // Returns the bounding rectangle enclosing an element boundary
     public java.awt.Rectangle getBounds() {
         return bounds;
     }
+    
+    // Set or reset highlight color
     public void setHighlighted(boolean highlighted) {
         this.highlighted = highlighted;
     }
+    
+    // Rotate an element
     public void setRotation(double angle) {
         this.angle = angle;
     }
+    
+    // Get the rotation angle
     public double getRotation() {
         return angle;
     }
     
+    // Move an element
     public void move(int deltaX, int deltaY) {
         position.translate(deltaX, deltaY);
         bounds.translate(deltaX, deltaY);
@@ -58,6 +72,7 @@ public abstract class Element implements Serializable {
     public abstract void draw(Graphics2D g2D);
     public abstract void modify(Point start, Point last);
     
+    // Draw a geometric element of type Shape
     protected void draw(Graphics2D g2D, Shape element) {
         g2D.setPaint(highlighted ? HIGHLIGHT_COLOR : color);
         AffineTransform old = g2D.getTransform();

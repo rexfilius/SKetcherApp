@@ -8,7 +8,8 @@ import javax.swing.*;
 public class SketcherConstants {
     
     // Path for images
-    public static final String IMAGE_PATH = "C:\\Users\\HP\\Documents\\NetBeansProjects\\SketcherApp\\images\\";
+    public static final String IMAGE_PATH = 
+        "C:\\Users\\HP\\Documents\\NetBeansProjects\\SketcherApp\\images\\";
     
     // ToolBar icons for File Menu
     public static final Icon NEW24 = new ImageIcon(IMAGE_PATH + "New24.gif");

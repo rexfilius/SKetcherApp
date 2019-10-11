@@ -68,28 +68,96 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
     public Color getElementColor() {
         return elementColor;
     }
+    
     public int getElementType() {
         return elementType;
     }
+    
     public Font getFont() {
         return textFont;
     }
+    
     public void setFont(Font font) {
         textFont = font;
     }
+    
     public JPopupMenu getPopup() {
         return popup;
     }
+    
     public String getSketchName() {
        return currentSketchFile == null ? DEFAULT_FILENAME.toString() : 
                                           currentSketchFile.getFileName().toString();
     }
+    
     public PageFormat getPageFormat() {
         return pageFormat;
     }
+    
     // Method called by SketcherModel object when it changes
+    @Override
     public void update(Observable o, Object obj) {
         sketchChanged = true;
+    }
+    
+    // Method for opening a sketch file and creating the model
+    public boolean openSketch(Path file) {
+        try(ObjectInputStream in = new ObjectInputStream(
+                new BufferedInputStream(Files.newInputStream(file)))) {
+            theApp.insertModel((SketcherModel)in.readObject());
+            currentSketchFile = file;
+            setTitle(frameTitle + " - " + currentSketchFile);
+            sketchChanged = false;
+        } catch(Exception e) {
+            System.err.println(e);
+            JOptionPane.showMessageDialog(this, "Error reading a sketch file.",
+                                          "File Input Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+        return true;
+    }
+    
+    // Prompt for save operation when necessary for File Open
+    public void checkForSave() {
+        if(sketchChanged && JOptionPane.YES_OPTION == 
+                            JOptionPane.showConfirmDialog(this,
+                                                          "Current file has changed. Save current file?",
+                                                          "Confirm Save Current File",
+                                                          JOptionPane.YES_NO_OPTION,
+                                                          JOptionPane.WARNING_MESSAGE)) {
+            saveOperation();
+        }
+    }
+    
+    // Print the window
+    @Override
+    public int print(Graphics g, PageFormat pageFormat, int pageIndex)
+                            throws PrinterException {
+        if(pageIndex > 0) {
+            return NO_SUCH_PAGE;
+        }
+        Graphics2D g2D = (Graphics2D) g;
+        double scaleX = pageFormat.getImageableWidth()/getWidth();
+        double scaleY = pageFormat.getImageableHeight()/getHeight();
+        double scale = Math.min(scaleX, scaleY);
+        g2D.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
+        g2D.scale(scale, scale);
+        printAll(g2D);
+        return PAGE_EXISTS;
+    }
+    
+    // Handle About menu events
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if(e.getSource() == aboutItem) {
+            JOptionPane.showMessageDialog(this, 
+                    "Sketcher Application \nDeveloper: Ifeakachukwu Osakwe \nVersion 1.0", 
+                    "About Sketcher", JOptionPane.INFORMATION_MESSAGE);
+        } else if(e.getSource() == fontItem) {
+            Rectangle bounds = getBounds();
+            fontDialog.setLocationRelativeTo(null);
+            fontDialog.setVisible(true);
+        }
     }
     
     private void createFileMenuActions() {
@@ -446,71 +514,12 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
         return true;
     }
     
-    // Method for opening a sketch file and creating the model
-    public boolean openSketch(Path file) {
-        try(ObjectInputStream in = new ObjectInputStream(
-                new BufferedInputStream(Files.newInputStream(file)))) {
-            theApp.insertModel((SketcherModel)in.readObject());
-            currentSketchFile = file;
-            setTitle(frameTitle + " - " + currentSketchFile);
-            sketchChanged = false;
-        } catch(Exception e) {
-            System.err.println(e);
-            JOptionPane.showMessageDialog(this, "Error reading a sketch file.",
-                                          "File Input Error", JOptionPane.ERROR_MESSAGE);
-            return false;
-        }
-        return true;
-    }
-    
-    // Prompt for save operation when necessary for File Open
-    public void checkForSave() {
-        if(sketchChanged && JOptionPane.YES_OPTION == 
-                            JOptionPane.showConfirmDialog(this,
-                                                          "Current file has changed. Save current file?",
-                                                          "Confirm Save Current File",
-                                                          JOptionPane.YES_NO_OPTION,
-                                                          JOptionPane.WARNING_MESSAGE)) {
-            saveOperation();
-        }
-    }
-    
-    // Print the window
-    @Override
-    public int print(Graphics g, PageFormat pageFormat, int pageIndex)
-                            throws PrinterException {
-        if(pageIndex > 0) {
-            return NO_SUCH_PAGE;
-        }
-        Graphics2D g2D = (Graphics2D) g;
-        double scaleX = pageFormat.getImageableWidth()/getWidth();
-        double scaleY = pageFormat.getImageableHeight()/getHeight();
-        double scale = Math.min(scaleX, scaleY);
-        g2D.translate(pageFormat.getImageableX(), pageFormat.getImageableY());
-        g2D.scale(scale, scale);
-        printAll(g2D);
-        return PAGE_EXISTS;
-    }
-    
-    // Handle About menu events
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        if(e.getSource() == aboutItem) {
-            JOptionPane.showMessageDialog(this, "Developed by filius, Inspired by Ivor Horton", 
-                                        "About Sketcher", JOptionPane.INFORMATION_MESSAGE);
-        } else if(e.getSource() == fontItem) {
-            Rectangle bounds = getBounds();
-            fontDialog.setLocationRelativeTo(null);
-            fontDialog.setVisible(true);
-        }
-    }
-    
     // Inner class defining Action objects for File Menu items
     class FileAction extends AbstractAction {
-        FileAction(String name) {
+        private FileAction(String name) {
             super(name);
         }
-        FileAction(String name, char ch, int modifiers) {
+        private FileAction(String name, char ch, int modifiers) {
             super(name);
             putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(ch, modifiers));
             int index = name.toUpperCase().indexOf(ch);
@@ -518,6 +527,7 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
                 putValue(DISPLAYED_MNEMONIC_INDEX_KEY, index);
             }
         }
+        @Override
         public void actionPerformed(ActionEvent e) {
             if(this == saveAction) {
                 saveOperation();
@@ -576,7 +586,7 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
     
     // Inner class defining Action objects for Element Type menu items
     class TypeAction extends AbstractAction {
-        TypeAction(String name, int typeID) {
+        private TypeAction(String name, int typeID) {
             super(name);
             this.typeID = typeID;
         }
@@ -588,6 +598,7 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
                 putValue(DISPLAYED_MNEMONIC_INDEX_KEY, index);
             }
         }
+        @Override
         public void actionPerformed(ActionEvent e) {
             elementType = typeID;
             setChecks(colorMenu, e.getSource());
@@ -598,11 +609,11 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
     
     // Inner class defining Action objects for Element Color menu items
     class ColorAction extends AbstractAction {
-        public ColorAction(String name, Color color) {
+        private ColorAction(String name, Color color) {
             super(name);
             this.color = color;
         }
-        public ColorAction(String name, Color color, char ch, int modifiers) {
+        private ColorAction(String name, Color color, char ch, int modifiers) {
             this(name, color);
             putValue(ACCELERATOR_KEY, KeyStroke.getKeyStroke(ch, modifiers));
             int index = name.toUpperCase().indexOf(ch);
@@ -610,6 +621,7 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
                 putValue(DISPLAYED_MNEMONIC_INDEX_KEY, index);
             }
         }
+        @Override
         public void actionPerformed(ActionEvent e) {
             if(this == customAction) {
                 Color newColor = JColorChooser.showDialog(SketcherFrame.this,
@@ -635,7 +647,7 @@ public class SketcherFrame extends JFrame implements ActionListener, Observer, P
     private JToolBar toolBar = new JToolBar();
     private StatusBar statusBar = new StatusBar();
     private JMenuItem aboutItem;
-    private JMenu optionsMenu;
+    //private JMenu optionsMenu;
     private FontDialog fontDialog;
     private JMenuItem fontItem;
     private JPopupMenu popup = new JPopupMenu("General");

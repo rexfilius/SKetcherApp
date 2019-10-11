@@ -13,25 +13,6 @@ public class Sketcher {
         });
     }
     
-    // method to create the application GUI
-    private void createGUI() {
-        window = new SketcherFrame("Sketcher", this);
-        Toolkit theKit = window.getToolkit();
-        Dimension wndSize = theKit.getScreenSize();
-        
-        window.setSize(wndSize.width/2, wndSize.height/2);
-        window.setLocationRelativeTo(null);
-        window.addWindowListener(new WindowHandler());
-        
-        sketch = new SketcherModel();
-        view = new SketcherView(this);
-        sketch.addObserver(view);
-        sketch.addObserver(window);
-        
-        window.getContentPane().add(view, BorderLayout.CENTER);
-        window.setVisible(true);
-    }
-    
     // Insert a new sketch model
     public void insertModel(SketcherModel newSketch) {
         sketch = newSketch;
@@ -53,6 +34,25 @@ public class Sketcher {
     // return a reference to the view
     public SketcherView getView() {
         return view;
+    }
+    
+    // method to create the application GUI
+    private void createGUI() {
+        window = new SketcherFrame("Sketcher", this);
+        Toolkit theKit = window.getToolkit();
+        Dimension wndSize = theKit.getScreenSize();
+        
+        window.setSize(wndSize.width/2, wndSize.height/2);
+        window.setLocationRelativeTo(null);
+        window.addWindowListener(new WindowHandler());
+        
+        sketch = new SketcherModel();
+        view = new SketcherView(this);
+        sketch.addObserver(view);
+        sketch.addObserver(window);
+        
+        window.getContentPane().add(view, BorderLayout.CENTER);
+        window.setVisible(true);
     }
     
     // Handler class for window events
